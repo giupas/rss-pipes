@@ -41,7 +41,7 @@ var datastore = require('./datastore.js');
 var makeSafeCode = require('./safeCode.js').makeSafeCode;
 var encodeAggregatorName = require('./public/js/common.js').encodeAggregatorName;
 
-var sitePrefix = process.env.SITE_PREFIX || 'http://rss-pipes.herokuapp.com';
+var sitePrefix = process.env.SITE_PREFIX || 'http://localhost:5000';
 
 var app = express();
 app.configure(function() {
@@ -80,6 +80,8 @@ function filterArticles(articles, filterStr) {
 }
 
 function generateRss(aggregatorName, options, callback) {
+  console.log(options);
+
   datastore.getAggregator(aggregatorName, function(err, agg) {
     if (err) {
       callback(err);
@@ -140,7 +142,10 @@ function generateRss(aggregatorName, options, callback) {
               date: article.date
             });
           });
-          callback(null, feed.xml());
+          if (options.format=="json")
+            callback(null, feed);
+          else 
+            callback(null, feed.xml());
         });
       });
   });
@@ -158,14 +163,17 @@ app.get('/', function(req, res) {
   }
 });
 
-app.get(new RegExp('^/aggregator/(.+)\\.rss$'), function(req, res) {
+app.get(new RegExp('^/aggregator/(.+)\\.(rss|json)$'), function(req, res) {
   var aggregatorName = req.params[0];
+  req.query.format=req.params[1];
   generateRss(aggregatorName, req.query, function(err, result) {
     if (err) {
       console.log('failed in generateRss:', err);
       res.send(500, 'failed generating rss (' + err + ')');
     } else {
       res.header('Access-Control-Allow-Origin', '*');
+      if (req.query.format=="rss")
+        res.header('Content-Type','text/xml');
       res.send(result);
     }
   });
