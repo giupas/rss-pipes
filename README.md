@@ -21,3 +21,19 @@ TODOs
 
 * Garbage collection of filters (that are not used for a week)
 * Cache control
+
+FILTERS
+-----
+
+An example filter (shorten descritpion and strip tags):
+
+```javascript
+function rssPipesFilterFunction(articles) {
+  articles.forEach(function(article) {
+    article.description = article.description.replace(/(<([^>]+)>)/ig,"");
+    if (article.description.length>150)
+      article.description=article.description.substr(0,150)+"...";
+  });
+  return articles;
+}
+```
