@@ -37,6 +37,7 @@ var rss = require('rss');
 var request = require('request');
 var Q = require('q');
 var datastore = require('./datastore.js');
+var util = require('util');
 
 var makeSafeCode = require('./safeCode.js').makeSafeCode;
 var encodeAggregatorName = require('./public/js/common.js').encodeAggregatorName;
@@ -80,8 +81,6 @@ function filterArticles(articles, filterStr) {
 }
 
 function generateRss(aggregatorName, options, callback) {
-  console.log(options);
-
   datastore.getAggregator(aggregatorName, function(err, agg) {
     if (err) {
       callback(err);
@@ -100,7 +99,10 @@ function generateRss(aggregatorName, options, callback) {
               cb(null, []);
               return;
             }
-            cb(null, articles);
+            console.log("Parsed "+url+" -> "+articles.length+" articles read");
+            //console.log("Meta:");
+            //console.log(util.inspect(meta, { showHidden: false, colors: true }));
+            cb(null, articles[0]);
           });
         } catch (err) {
           console.log('error by aggregator[2] "' + aggregatorName + '" in parsing "' + url + '":', err);
@@ -124,7 +126,7 @@ function generateRss(aggregatorName, options, callback) {
         (allArticles.then ? allArticles : Q.fcall(function() {
           return allArticles;
         })).then(function(allArticles) {
-          var feed_url = sitePrefix + '/aggregator/' + encodeAggregatorName(aggregatorName) + '.rss';
+          var feed_url = sitePrefix + '/aggregator/' + encodeAggregatorName(aggregatorName) + '.'+options.format;
           var site_url = sitePrefix + '/static/main.html#/edit?name=' + encodeURIComponent(aggregatorName);
           var feed = new rss({
             title: aggregatorName + ' by RSS Pipes',
@@ -132,6 +134,9 @@ function generateRss(aggregatorName, options, callback) {
             feed_url: feed_url,
             site_url: site_url
           });
+
+          feed.keys = {};
+
           allArticles.forEach(function(article) {
             feed.item({
               title: article.title,
@@ -141,7 +146,26 @@ function generateRss(aggregatorName, options, callback) {
               author: article.author,
               date: article.date
             });
+          });        
+
+          feed.items.sort(function(a, b) {
+              if (a.date < b.date) return 1
+                if (a.date > b.date) return -1
+                  else return 0;
           });
+
+          //console.log(util.inspect(feed.items, { showHidden: false, colors: true }));
+          try {
+            for (var i = 0; i < feed.items.length; i++) {
+              feed.items[i]
+              key = (feed.items[i].url.match(/blog\.[a-z]+\.[a-z]+\/(.*)\/\d{4}/)[1]);
+              feed.keys[key]=i;
+              console.log(key+" "+i);
+            };            
+          } catch(err) {
+            console.log(err);
+          }
+
           if (options.format=="json")
             callback(null, feed);
           else 
@@ -250,7 +274,7 @@ app.put(new RegExp('^/rest/aggregators/(.+)$'), function(req, res) {
 
 app.get(new RegExp('^/gist/(.+)\\.raw$'), function(req, res) {
   var gist_id = req.params[0];
-  request('http://gist.github.com/' + gist_id + '/raw/', function(err, response, body) {
+    request('http://gist.github.com/' + gist_id + '/raw/', function(err, response, body) {
     if (err) {
       console.log('failed in getting a gist[1]:', err);
       res.send(500, 'failed getting a gist');
