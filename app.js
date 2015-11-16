@@ -28,6 +28,8 @@
 /* jshint quotmark: single, eqeqeq: true */
 /* jshint node: true */
 
+var config=require('./config.json')[process.env.NODE_ENV || 'dev'];
+
 var vm = require('vm');
 var path = require('path');
 var express = require('express');
